@@ -98,8 +98,8 @@ _C.TEST.NUM_SPATIAL_CROPS = 3
 
 # Checkpoint types include `caffe2` or `pytorch`.
 _C.TEST.CHECKPOINT_TYPE = "pytorch"
-# Path to saving prediction results file.
-_C.TEST.SAVE_RESULTS_PATH = ""
+
+
 # -----------------------------------------------------------------------------
 # ResNet options
 # -----------------------------------------------------------------------------
@@ -107,6 +107,12 @@ _C.RESNET = CfgNode()
 
 # Transformation function.
 _C.RESNET.TRANS_FUNC = "bottleneck_transform"
+
+# Transformation for audio pathway.
+_C.RESNET.AUDIO_TRANS_FUNC = "tf_bottleneck_transform"
+
+# Number of ResStage that applies audio-specific transformation.
+_C.RESNET.AUDIO_TRANS_NUM = 2
 
 # Number of groups. 1 for ResNet, and larger than 1 for ResNeXt).
 _C.RESNET.NUM_GROUPS = 1
@@ -185,7 +191,7 @@ _C.MODEL.LOSS_FUNC = "cross_entropy"
 _C.MODEL.SINGLE_PATHWAY_ARCH = ["c2d", "i3d", "slow"]
 
 # Model architectures that has multiple pathways.
-_C.MODEL.MULTI_PATHWAY_ARCH = ["slowfast"]
+_C.MODEL.MULTI_PATHWAY_ARCH = ["slowfast", "avslowfast"]
 
 # Dropout rate before final projection in the backbone.
 _C.MODEL.DROPOUT_RATE = 0.5
@@ -202,11 +208,11 @@ _C.MODEL.HEAD_ACT = "softmax"
 # -----------------------------------------------------------------------------
 _C.SLOWFAST = CfgNode()
 
-# Corresponds to the inverse of the channel reduction ratio, $\beta$ between
+# Corresponds to the inverse of the channel reduction ratio, β between
 # the Slow and Fast pathways.
 _C.SLOWFAST.BETA_INV = 8
 
-# Corresponds to the frame rate reduction ratio, $\alpha$ between the Slow and
+# Corresponds to the frame rate reduction ratio, α between the Slow and
 # Fast pathways.
 _C.SLOWFAST.ALPHA = 8
 
@@ -217,6 +223,37 @@ _C.SLOWFAST.FUSION_CONV_CHANNEL_RATIO = 2
 # pathway.
 _C.SLOWFAST.FUSION_KERNEL_SZ = 5
 
+# Audio pathway channel ratio
+_C.SLOWFAST.AU_BETA_INV = 2
+
+# Frame rate ratio between audio and slow pathways
+_C.SLOWFAST.AU_ALPHA = 32
+
+_C.SLOWFAST.AU_FUSION_CONV_CHANNEL_RATIO = 0.125
+
+_C.SLOWFAST.AU_FUSION_CONV_CHANNEL_DIM = 64
+
+_C.SLOWFAST.AU_FUSION_CONV_CHANNEL_MODE = 'ByRatio' # ByDim, ByRatio
+
+_C.SLOWFAST.AU_FUSION_KERNEL_SZ = 5
+
+_C.SLOWFAST.AU_FUSION_CONV_NUM = 2
+
+_C.SLOWFAST.AU_REDUCE_TF_DIM = True
+
+_C.SLOWFAST.FS_FUSION = [True, True, True, True]
+
+_C.SLOWFAST.AFS_FUSION = [True, True, True, True]
+
+_C.SLOWFAST.AVS_FLAG = [False, False, False, False, False]
+
+_C.SLOWFAST.AVS_PROJ_DIM = 64
+
+_C.SLOWFAST.AVS_VAR_THRESH = 0.01
+
+_C.SLOWFAST.AVS_DUPLICATE_THRESH = 0.99
+
+_C.SLOWFAST.DROPPATHWAY_RATE = 0.8
 
 # -----------------------------------------------------------------------------
 # Data options
@@ -243,12 +280,18 @@ _C.DATA.SAMPLING_RATE = 8
 
 # The mean value of the video raw pixels across the R G B channels.
 _C.DATA.MEAN = [0.45, 0.45, 0.45]
-# List of input frame channel dimensions.
 
+# List of input frame channel dimensions.
 _C.DATA.INPUT_CHANNEL_NUM = [3, 3]
 
 # The std value of the video raw pixels across the R G B channels.
 _C.DATA.STD = [0.225, 0.225, 0.225]
+
+# Mean of logmel spectrogram
+_C.DATA.LOGMEL_MEAN = 0.0
+
+# Std of logmel spectrogram
+_C.DATA.LOGMEL_STD = 1.0
 
 # The spatial augmentation jitter scales for training.
 _C.DATA.TRAIN_JITTER_SCALES = [256, 320]
@@ -258,6 +301,29 @@ _C.DATA.TRAIN_CROP_SIZE = 224
 
 # The spatial crop size for testing.
 _C.DATA.TEST_CROP_SIZE = 256
+
+# Decode audio
+_C.DATA.USE_AUDIO = False
+
+_C.DATA.GET_MISALIGNED_AUDIO = False
+
+_C.DATA.AUDIO_SAMPLE_RATE = 16000
+
+_C.DATA.AUDIO_WIN_SZ = 32
+
+_C.DATA.AUDIO_STEP_SZ = 16
+
+_C.DATA.AUDIO_FRAME_NUM = 128
+
+_C.DATA.AUDIO_MEL_NUM = 40
+
+_C.DATA.AUDIO_MISALIGNED_GAP = 32
+
+_C.DATA.EASY_NEG_RATIO = 0.75
+
+_C.DATA.MIX_NEG_EPOCH = 96
+
+_C.DATA.USE_BGR_ORDER = False
 
 # Input videos may has different fps, convert it to the target video fps before
 # frame sampling.
@@ -530,6 +596,7 @@ _C.MULTIGRID.DEFAULT_B = 0
 _C.MULTIGRID.DEFAULT_T = 0
 _C.MULTIGRID.DEFAULT_S = 0
 
+
 # -----------------------------------------------------------------------------
 # Tensorboard Visualization Options
 # -----------------------------------------------------------------------------
@@ -538,9 +605,7 @@ _C.TENSORBOARD = CfgNode()
 # Log to summary writer, this will automatically.
 # log loss, lr and metrics during train/eval.
 _C.TENSORBOARD.ENABLE = False
-# Provide path to prediction results for visualization.
-# This is a pickle file of [prediction_tensor, label_tensor]
-_C.TENSORBOARD.PREDICTIONS_PATH = ""
+
 # Path to directory for tensorboard logs.
 # Default to to cfg.OUTPUT_DIR/runs-{cfg.TRAIN.DATASET}.
 _C.TENSORBOARD.LOG_DIR = ""
@@ -593,7 +658,6 @@ _C.TENSORBOARD.MODEL_VIS.ACTIVATIONS = False
 # If False, skip visualizing input videos.
 _C.TENSORBOARD.MODEL_VIS.INPUT_VIDEO = False
 
-
 # List of strings containing data about layer names and their indexing to
 # visualize weights and activations for. The indexing is meant for
 # choosing a subset of activations outputed by a layer for visualization.
@@ -606,8 +670,7 @@ _C.TENSORBOARD.MODEL_VIS.LAYER_LIST = []
 _C.TENSORBOARD.MODEL_VIS.TOPK_PREDS = 1
 # Colormap to for text boxes and bounding boxes colors
 _C.TENSORBOARD.MODEL_VIS.COLORMAP = "Pastel2"
-# Config for visualization video inputs with Grad-CAM.
-# _C.TENSORBOARD.ENABLE must be True.
+
 _C.TENSORBOARD.MODEL_VIS.GRAD_CAM = CfgNode()
 # Whether to run visualization using Grad-CAM technique.
 _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.ENABLE = True
@@ -619,16 +682,6 @@ _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.LAYER_LIST = []
 _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.USE_TRUE_LABEL = False
 # Colormap to for text boxes and bounding boxes colors
 _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.COLORMAP = "viridis"
-
-# Config for visualization for wrong prediction visualization.
-# _C.TENSORBOARD.ENABLE must be True.
-_C.TENSORBOARD.WRONG_PRED_VIS = CfgNode()
-_C.TENSORBOARD.WRONG_PRED_VIS.ENABLE = False
-# Folder tag to origanize model eval videos under.
-_C.TENSORBOARD.WRONG_PRED_VIS.TAG = "Incorrectly classified videos."
-# Subset of labels to visualize. Only wrong predictions with true labels
-# within this subset is visualized.
-_C.TENSORBOARD.WRONG_PRED_VIS.SUBSET_PATH = ""
 
 
 # ---------------------------------------------------------------------------- #
@@ -679,15 +732,7 @@ _C.DEMO.CLIP_VIS_SIZE = 10
 # Number of processes to run video visualizer.
 _C.DEMO.NUM_VIS_INSTANCES = 2
 
-# Path to pre-computed predicted boxes
 _C.DEMO.PREDS_BOXES = ""
-# Whether to run in with multi-threaded video reader.
-_C.DEMO.THREAD_ENABLE = False
-# Take one clip for every `DEMO.NUM_CLIPS_SKIP` + 1 for prediction and visualization.
-# This is used for fast demo speed by reducing the prediction/visualiztion frequency.
-# If -1, take the most recent read clip for visualization. This mode is only supported
-# if `DEMO.THREAD_ENABLE` is set to True.
-_C.DEMO.NUM_CLIPS_SKIP = 0
 # Path to ground-truth boxes and labels (optional)
 _C.DEMO.GT_BOXES = ""
 # The starting second of the video w.r.t bounding boxes file.
@@ -715,9 +760,6 @@ _C.DEMO.COMMON_CLASS_NAMES = [
     "lie/sleep",
     "bend/bow (at the waist)",
 ]
-# Slow-motion rate for the visualization. The visualized portions of the
-# video will be played `_C.DEMO.SLOWMO` times slower than usual speed.
-_C.DEMO.SLOWMO = 1
 
 # Add custom config with default values.
 custom_config.add_custom_config(_C)
