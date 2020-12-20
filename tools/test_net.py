@@ -119,7 +119,7 @@ def test(cfg):
     torch.manual_seed(cfg.RNG_SEED)
 
     # Setup logging format.
-    logging.setup_logging()
+    logging.setup_logging(cfg.OUTPUT_DIR)
 
     # Print config.
     logger.info("Test with config:")
@@ -127,7 +127,7 @@ def test(cfg):
 
     # Build the video model and print model statistics.
     model = build_model(cfg)
-    if du.is_master_proc():
+    if du.is_master_proc() and cfg.LOG_MODEL_INFO:
         misc.log_model_info(model, cfg, is_train=False)
 
     # Load a checkpoint to test if applicable.
